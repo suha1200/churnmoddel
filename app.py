@@ -1,155 +1,138 @@
 import os
-from pycaret.classification import *
-import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
-import catboost
+import streamlit as st
+import matplotlib
+matplotlib.use('Agg')  # Use 'Agg' backend for matplotlib to avoid GUI issues within Streamlit
 
-matplotlib.use('Agg')
 
-
+# Utility Functions
 def get_value(val, my_dict):
-    for key, value in my_dict.items():
-        if val == key:
-            return value
+    """Retrieve value from a dictionary given a key."""
+    return my_dict.get(val, None)
 
 
-# Find the Key From Dictionary
 def get_key(val, my_dict):
+    """Retrieve key from a dictionary given a value."""
     for key, value in my_dict.items():
         if val == value:
             return key
+    return None
 
 
-# Load Models
 def load_model_n_predict(model_file):
+    """Load a pre-trained model for prediction."""
     loaded_model = joblib.load(open(os.path.join(model_file), "rb"))
     return loaded_model
 
 
 def main():
-    st.title('Churn Modelling')
-    activity = ["eda", "prediction"]
-    choice = st.sidebar.selectbox("choose  An Activity", activity)
+    st.title('Customer Churn Prediction Tool')
+
+    # Sidebar for navigation
+    activity = ["Exploratory Data Analysis", "Prediction"]
+    choice = st.sidebar.selectbox("Choose an Activity", activity)
+
+    # Load and preprocess data
     df = pd.read_csv('data/Churn_Modelling.csv')
-    # Drop 'CustomerId' and 'Surname' columns
     data_cleaned = df.drop(['CustomerId', 'Surname'], axis=1)
-
-    # Drop all rows with missing values
     data_cleaned.dropna(inplace=True)
-
-    # Convert 'Geography' and 'Gender' to integers
-    # We use factorize to convert unique strings to an enumerated type
-    data_cleaned['Geography'] = pd.factorize(data_cleaned['Geography'])[0] + 1  # Adding 1 to start numbering from 1
+    data_cleaned['Geography'] = pd.factorize(data_cleaned['Geography'])[0] + 1
     data_cleaned['Gender'] = pd.factorize(data_cleaned['Gender'])[0] + 1
 
-    # EDA
-    if choice == 'eda':
-        st.subheader("EDA Section")
-        st.text("Exploratory Data Analysis")
-        # Preview
-        if st.checkbox("Preview Dataset"):
-            number = st.number_input("Number to Show",
-                                     min_value=1, max_value=100, value=5, step=1)
+    if choice == "Exploratory Data Analysis":
+        st.header("Exploratory Data Analysis (EDA)")
+        st.markdown(
+            "Explore the dataset to understand the distribution of various features and their relation to customer churn.")
+
+        # Data Preview
+        if st.checkbox("Preview Dataset", help="Check to preview the dataset."):
+            number = st.number_input("Number of Rows to Show", min_value=5, max_value=100, value=10,
+                                     help="Choose the number of rows to display.")
             st.dataframe(df.head(number))
 
-        # Show columns/ Rows
-        if st.button("Column Names"):
-            st.write(df.columns)
-        # Descriptions
-        if st.checkbox("Show Description"):
+        # Descriptive Statistics
+        if st.checkbox("Show Descriptive Statistics", help="Check to display the dataset's descriptive statistics."):
             st.write(df.describe())
-        # Shape
-        if st.checkbox("Show Shape of Dataset"):
-            st.write(df.shape)
-            data_dim = st.radio("Show dimension by", ("Rows", "Columns"))
-            if data_dim == 'Rows':
-                st.text("Number of Rows")
-                st.write(df.shape[0])
-            elif data_dim == 'Columns':
-                st.text("Number of Columns")
-                st.write(df.shape[1])
-            else:
-                st.write("df.shape")
-        # Selection
-        if st.checkbox('Select Columns to Show'):
-            all_columns = df.columns.tolist()
-            selected_columns = st.multiselect("Select Columns", all_columns)
-            new_df = df[selected_columns]
-            st.dataframe(new_df)
-        if st.checkbox("Select Rows to Show"):
-            selected_index = st.multiselect("Select Rows", df.head(100).index)
-            selected_rows = df.loc[selected_index]
-            st.dataframe(selected_rows)
-        if st.button("Value Counts"):
-            st.text("Value Counts by Has a Credit Card")
-            st.write(df.iloc[:, -4].value_counts())
-        # Plot
-        if st.checkbox('Show Correlation Plot[Matplotlib]'):
-            st.set_option('deprecation.showPyplotGlobalUse', False)
-            numeric_df = df.select_dtypes(include=[np.number])
-            plt.matshow(numeric_df.corr())
-            plt.xticks(range(len(numeric_df.columns)), numeric_df.columns, rotation='vertical')
-            plt.yticks(range(len(numeric_df.columns)), numeric_df.columns)
-            plt.colorbar()
+
+        # Dataset Shape
+        if st.checkbox("Show Dataset Shape", help="Check to display the shape of the dataset."):
+            st.write(f"Rows: {df.shape[0]}, Columns: {df.shape[1]}")
+
+        # Column-wise Value Counts
+        if st.checkbox("Show Value Counts for a Column", help="Select a column to display its value counts."):
+            column = st.selectbox("Column", df.columns, help="Select a column to see value counts.")
+            st.write(df[column].value_counts())
+
+        # Correlation Matrix Heatmap
+        if st.checkbox("Show Correlation Matrix Heatmap", help="Check to display a heatmap of the correlation matrix."):
+            plt.figure(figsize=(10, 7))
+            sns.heatmap(df.corr(), annot=True, cmap='coolwarm')
             st.pyplot()
 
-            # plt.matshow(df1.corr())
-            # st.pyplot()
-        if st.checkbox("Show Correlation Plot[Seaborn]"):
-            numeric_columns = df.select_dtypes(include='number')
-
-            # Drop missing values in numeric columns
-            numeric_columns = numeric_columns.dropna()
-
-            # Display correlation plot
-            st.write(sns.heatmap(numeric_columns.corr(), annot=True))
+        # Additional EDA: Distribution of Customer Age
+        if st.checkbox("Show Age Distribution", help="Check to display the distribution of customer ages."):
+            plt.figure(figsize=(8, 6))
+            sns.histplot(df['Age'], bins=20, kde=True)
+            plt.title("Distribution of Customer Ages")
             st.pyplot()
-    elif choice == 'prediction':
+
+    if choice == 'Prediction':
         st.subheader("Prediction Section")
-        d_geography = {'France': 0, 'Spain': 1, 'Germany': 2, 'other': 3}
-        d_gender = {'Female': 0, 'Male': 1}
-        credit_score = st.slider("Select Credit Score", 350, 850)
-        geography = st.selectbox("Select Location", tuple(d_geography.keys()))
-        gender = st.radio("Select Sex", tuple(d_gender.keys()))
-        age = st.slider("Select Age", 18, 100)
-        tenure = st.slider("Select Tenure", 0, 10)
-        balance = st.number_input("Balance", 0, 999999)
-        no_products = st.slider("Number of products", 0, 10)
-        has_cr_card = int(st.checkbox("Has Credit Card"))
-        is_active_member = int(st.checkbox("Is Active Member"))
-        salary = st.number_input("Estimate Salary")
-        # USER INPUT ENDS HERE
+        st.markdown("""
+            Predict the likelihood of a customer leaving the bank using their profile information.
+            Fill out the customer details below and press "Predict" to see the outcome.
+            """)
 
-        # GET VALUES FOR EACH INPUT
+        # Mapping dictionaries for geography and gender
+        d_geography = {'France': 0, 'Spain': 1, 'Germany': 2, 'Other': 3}
+        d_gender = {'Female': 0, 'Male': 1}
+
+        # Using columns to logically group inputs
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            credit_score = st.slider("Credit Score", 350, 850,
+                                     help="Customer's credit score (350-850). A higher score indicates better creditworthiness.")
+            age = st.slider("Age", 18, 100, help="Customer's age.")
+            balance = st.number_input("Balance", min_value=0.0, max_value=999999.0, format="%.2f",
+                                      help="Customer's account balance.")
+
+        with col2:
+            geography = st.selectbox("Location", tuple(d_geography.keys()), help="Customer's country of residence.")
+            tenure = st.slider("Tenure", 0, 10, help="Number of years the customer has been with the bank.")
+            no_products = st.slider("Number of Products", 0, 10, help="Number of bank products the customer uses.")
+
+        with col3:
+            gender = st.radio("Gender", tuple(d_gender.keys()), help="Customer's gender.")
+            has_cr_card = st.checkbox("Has Credit Card", help="Does the customer have a credit card?")
+            is_active_member = st.checkbox("Is Active Member", help="Is the customer an active member?")
+
+        salary = st.number_input("Estimated Salary", min_value=0.0, help="Customer's estimated salary.")
+
+        # Encoding the inputs
         k_gender = get_value(gender, d_gender)
         k_geography = get_value(geography, d_geography)
 
-        # RESULT OF USER INPUT
-        selected_options = [credit_score, geography, gender, age, tenure, balance, no_products,
-                            has_cr_card, is_active_member, salary]
-        vectorized_result = [credit_score, k_geography, k_gender, age, tenure, balance, no_products,
-                             has_cr_card, is_active_member, salary]
-        sample_data = np.array(vectorized_result).reshape(1, -1)
-
-        column_names = ['CreditScore', 'Geography', 'Gender', 'Age', 'Tenure', 'Balance', 'NumOfProducts', 'HasCrCard',
-                        'IsActiveMember', 'EstimatedSalary']
-
-        sample_data_df = pd.DataFrame([vectorized_result], columns=column_names)
-
-
-        st.info(selected_options)
-        st.text("Using this encoding for prediction")
-        st.success(vectorized_result)
+        # Preparing the data for prediction
+        vectorized_result = [credit_score, k_geography, k_gender, age, tenure, balance, no_products, int(has_cr_card),
+                             int(is_active_member), salary]
+        sample_data_df = pd.DataFrame([vectorized_result],
+                                      columns=['CreditScore', 'Geography', 'Gender', 'Age', 'Tenure', 'Balance',
+                                               'NumOfProducts', 'HasCrCard', 'IsActiveMember', 'EstimatedSalary'])
 
         if st.button("Predict"):
             model_predictor = load_model_n_predict("churn_modelling_pipeline_v3.pkl")
             prediction = model_predictor.predict(sample_data_df)
-            st.success("Predicted Churn as :: {}".format(prediction))
+            pred_result = "Churn" if prediction[0] == 1 else "No Churn"
+            st.success(f"Prediction Result: {pred_result}")
+            st.markdown("""
+                **What does this mean?** A prediction of **"Churn"** suggests the customer is likely to leave the bank. Consider strategies to increase customer satisfaction and retention.
+                """)
+
 
 if __name__ == '__main__':
     main()
