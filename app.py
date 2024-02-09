@@ -6,8 +6,11 @@ import seaborn as sns
 import joblib
 import streamlit as st
 import matplotlib
+import plotly.figure_factory as ff
+import plotly.express as px
 matplotlib.use('Agg')  # Use 'Agg' backend for matplotlib to avoid GUI issues within Streamlit
 
+# improved layout with 3 column for prediction.  Adding Interactive Data Visualizations
 
 # Utility Functions
 def get_value(val, my_dict):
@@ -69,16 +72,26 @@ def main():
 
         # Correlation Matrix Heatmap
         if st.checkbox("Show Correlation Matrix Heatmap", help="Check to display a heatmap of the correlation matrix."):
-            plt.figure(figsize=(10, 7))
-            sns.heatmap(df.corr(), annot=True, cmap='coolwarm')
-            st.pyplot()
+            corr_matrix = df.corr()
+            # Using 'RdBu' colorscale which is supported by Plotly
+            fig = ff.create_annotated_heatmap(
+                z=corr_matrix.values,
+                x=list(corr_matrix.columns),
+                y=list(corr_matrix.index),
+                annotation_text=corr_matrix.round(2).values,
+                colorscale='RdBu',
+                reversescale=True,  # Reverse the colorscale to match 'coolwarm' style
+                showscale=True
+            )
+            fig.update_layout(margin=dict(t=50, l=200))
+            fig.update_layout(height=600, width=800)
+            st.plotly_chart(fig, use_container_width=True)
 
         # Additional EDA: Distribution of Customer Age
         if st.checkbox("Show Age Distribution", help="Check to display the distribution of customer ages."):
-            plt.figure(figsize=(8, 6))
-            sns.histplot(df['Age'], bins=20, kde=True)
-            plt.title("Distribution of Customer Ages")
-            st.pyplot()
+            fig = px.histogram(df, x='Age', nbins=20, marginal="box", title="Distribution of Customer Ages")
+            fig.update_layout(bargap=0.1)
+            st.plotly_chart(fig, use_container_width=True)
 
     if choice == 'Prediction':
         st.subheader("Prediction Section")
@@ -91,8 +104,8 @@ def main():
         d_geography = {'France': 0, 'Spain': 1, 'Germany': 2, 'Other': 3}
         d_gender = {'Female': 0, 'Male': 1}
 
-        # Using columns to logically group inputs
-        col1, col2, col3 = st.columns(3)
+        # Using columns to logically group inputs into two columns
+        col1, col2 = st.columns(2)
 
         with col1:
             credit_score = st.slider("Credit Score", 350, 850,
@@ -100,18 +113,15 @@ def main():
             age = st.slider("Age", 18, 100, help="Customer's age.")
             balance = st.number_input("Balance", min_value=0.0, max_value=999999.0, format="%.2f",
                                       help="Customer's account balance.")
+            geography = st.selectbox("Location", tuple(d_geography.keys()), help="Customer's country of residence.")
+            has_cr_card = st.checkbox("Has Credit Card", help="Does the customer have a credit card?")
 
         with col2:
-            geography = st.selectbox("Location", tuple(d_geography.keys()), help="Customer's country of residence.")
             tenure = st.slider("Tenure", 0, 10, help="Number of years the customer has been with the bank.")
             no_products = st.slider("Number of Products", 0, 10, help="Number of bank products the customer uses.")
-
-        with col3:
             gender = st.radio("Gender", tuple(d_gender.keys()), help="Customer's gender.")
-            has_cr_card = st.checkbox("Has Credit Card", help="Does the customer have a credit card?")
             is_active_member = st.checkbox("Is Active Member", help="Is the customer an active member?")
-
-        salary = st.number_input("Estimated Salary", min_value=0.0, help="Customer's estimated salary.")
+            salary = st.number_input("Estimated Salary", min_value=0.0, help="Customer's estimated salary.")
 
         # Encoding the inputs
         k_gender = get_value(gender, d_gender)
@@ -126,12 +136,17 @@ def main():
 
         if st.button("Predict"):
             model_predictor = load_model_n_predict("churn_modelling_pipeline_v3.pkl")
+            prediction_proba = model_predictor.predict_proba(sample_data_df)[0]
+            fig = px.bar(x=['No Churn', 'Churn'], y=prediction_proba, labels={'x': 'Outcome', 'y': 'Probability'},
+                         title='Churn Prediction Probability')
+            st.plotly_chart(fig, use_container_width=True)
+
             prediction = model_predictor.predict(sample_data_df)
             pred_result = "Churn" if prediction[0] == 1 else "No Churn"
             st.success(f"Prediction Result: {pred_result}")
             st.markdown("""
-                **What does this mean?** A prediction of **"Churn"** suggests the customer is likely to leave the bank. Consider strategies to increase customer satisfaction and retention.
-                """)
+                            **What does this mean?** A prediction of **"Churn"** suggests the customer is likely to leave the bank. Consider strategies to increase customer satisfaction and retention.
+                            """)
 
 
 if __name__ == '__main__':
