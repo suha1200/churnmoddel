@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
@@ -8,43 +7,49 @@ import streamlit as st
 import matplotlib
 import plotly.figure_factory as ff
 import plotly.express as px
-matplotlib.use('Agg')  # Use 'Agg' backend for matplotlib to avoid GUI issues within Streamlit
 
-# improved layout with 3 column for prediction.  Adding Interactive Data Visualizations
+# Set the backend of matplotlib to the 'agg' backend to avoid any issues related to GUI backends in streamlit
+matplotlib.use('Agg')
 
-# Utility Functions
+# Define utility functions for the Streamlit app
 def get_value(val, my_dict):
     """Retrieve value from a dictionary given a key."""
+    # If the key is found in the dictionary, return its value
     return my_dict.get(val, None)
-
 
 def get_key(val, my_dict):
     """Retrieve key from a dictionary given a value."""
+    # Iterate through the dictionary to find the key for the given value
     for key, value in my_dict.items():
         if val == value:
             return key
+    # If the value is not found, return None
     return None
-
 
 def load_model_n_predict(model_file):
     """Load a pre-trained model for prediction."""
+    # Load a model from the specified file path and return it
     loaded_model = joblib.load(open(os.path.join(model_file), "rb"))
     return loaded_model
 
-
+# Define the main function to construct the Streamlit app
 def main():
+    # Set the title of the app
     st.title('Customer Churn Prediction Tool')
 
-    # Sidebar for navigation
+    # Create a sidebar for navigation with two always visible options
+    # Users can choose between "Exploratory Data Analysis" and "Prediction"
+    st.sidebar.title("Navigation")
     activity = ["Exploratory Data Analysis", "Prediction"]
-    choice = st.sidebar.selectbox("Choose an Activity", activity)
+    choice = st.sidebar.radio("Choose an Activity", activity)
 
-    # Load and preprocess data
+    # Load and preprocess the data
+    # Data is read from a CSV file, irrelevant columns are dropped, and categorical columns are factorized
     df = pd.read_csv('data/Churn_Modelling.csv')
     data_cleaned = df.drop(['CustomerId', 'Surname'], axis=1)
-    data_cleaned.dropna(inplace=True)
-    data_cleaned['Geography'] = pd.factorize(data_cleaned['Geography'])[0] + 1
-    data_cleaned['Gender'] = pd.factorize(data_cleaned['Gender'])[0] + 1
+    data_cleaned.dropna(inplace=True)  # Remove any rows with missing values
+    data_cleaned['Geography'] = pd.factorize(data_cleaned['Geography'])[0] + 1  # Encode 'Geography'
+    data_cleaned['Gender'] = pd.factorize(data_cleaned['Gender'])[0] + 1  # Encode 'Gender'
 
     if choice == "Exploratory Data Analysis":
         st.header("Exploratory Data Analysis (EDA)")
