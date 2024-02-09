@@ -52,50 +52,63 @@ def main():
     data_cleaned['Gender'] = pd.factorize(data_cleaned['Gender'])[0] + 1  # Encode 'Gender'
 
     if choice == "Exploratory Data Analysis":
+        # Display the header for the EDA section
         st.header("Exploratory Data Analysis (EDA)")
         st.markdown(
-            "Explore the dataset to understand the distribution of various features and their relation to customer churn.")
+            "Explore the dataset to understand the distribution of various features and their relation to customer churn."
+        )
 
-        # Data Preview
-        if st.checkbox("Preview Dataset", help="Check to preview the dataset."):
-            number = st.number_input("Number of Rows to Show", min_value=5, max_value=100, value=10,
-                                     help="Choose the number of rows to display.")
+        # Use an expander for previewing the dataset
+        with st.expander("Preview Dataset"):
+            # Allow the user to specify the number of rows to display
+            number = st.number_input("Number of Rows to Show", min_value=5, max_value=100, value=10)
+            # Display the top specified number of rows from the dataframe
             st.dataframe(df.head(number))
 
-        # Descriptive Statistics
-        if st.checkbox("Show Descriptive Statistics", help="Check to display the dataset's descriptive statistics."):
+        # Use an expander for descriptive statistics
+        with st.expander("Show Descriptive Statistics"):
+            # Show descriptive statistics of the dataframe
             st.write(df.describe())
 
-        # Dataset Shape
-        if st.checkbox("Show Dataset Shape", help="Check to display the shape of the dataset."):
+        # Use an expander to show the shape of the dataset
+        with st.expander("Show Dataset Shape"):
+            # Display the number of rows and columns in the dataframe
             st.write(f"Rows: {df.shape[0]}, Columns: {df.shape[1]}")
 
-        # Column-wise Value Counts
-        if st.checkbox("Show Value Counts for a Column", help="Select a column to display its value counts."):
-            column = st.selectbox("Column", df.columns, help="Select a column to see value counts.")
+        # Use an expander for value counts of a selected column
+        with st.expander("Show Value Counts for a Column"):
+            # Let the user select a column to display value counts
+            column = st.selectbox("Column to Display", df.columns)
+            # Display the value counts for the selected column
             st.write(df[column].value_counts())
 
-        # Correlation Matrix Heatmap
-        if st.checkbox("Show Correlation Matrix Heatmap", help="Check to display a heatmap of the correlation matrix."):
+        # Use an expander for the correlation matrix heatmap
+        with st.expander("Show Correlation Matrix Heatmap"):
+            # Calculate the correlation matrix
             corr_matrix = df.corr()
-            # Using 'RdBu' colorscale which is supported by Plotly
+            # Create a heatmap using the correlation matrix
             fig = ff.create_annotated_heatmap(
                 z=corr_matrix.values,
                 x=list(corr_matrix.columns),
                 y=list(corr_matrix.index),
                 annotation_text=corr_matrix.round(2).values,
                 colorscale='RdBu',
-                reversescale=True,  # Reverse the colorscale to match 'coolwarm' style
+                reversescale=True,
                 showscale=True
             )
+            # Update the layout of the figure for better presentation
             fig.update_layout(margin=dict(t=50, l=200))
             fig.update_layout(height=600, width=800)
+            # Display the heatmap
             st.plotly_chart(fig, use_container_width=True)
 
-        # Additional EDA: Distribution of Customer Age
-        if st.checkbox("Show Age Distribution", help="Check to display the distribution of customer ages."):
+        # Use an expander to show the distribution of the 'Age' column
+        with st.expander("Show Age Distribution"):
+            # Create a histogram of the 'Age' column with a marginal boxplot
             fig = px.histogram(df, x='Age', nbins=20, marginal="box", title="Distribution of Customer Ages")
+            # Update the layout of the histogram
             fig.update_layout(bargap=0.1)
+            # Display the histogram
             st.plotly_chart(fig, use_container_width=True)
 
     if choice == 'Prediction':
